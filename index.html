@@ -74,7 +74,7 @@ a{color:#8D351D}a:hover{color:#331C10}.nav a:not(.btn){color:#1B1B1B;text-decora
 .op.s-out .op-sun{--r:150vmax;transition:--r 1.3s cubic-bezier(.65,0,.25,1)}
 .op.s-out .op-body,.op.s-out .op-head{opacity:0;transition:opacity .4s}
 .op.s-name .op-veil{opacity:1}
-.op-body{position:absolute;left:50%;top:var(--cy);transform:translate(-50%,-50%);width:min(84vw,560px);display:flex;flex-direction:column;align-items:center;text-align:center;gap:16px}
+.op-body{position:absolute;left:50%;top:var(--cy);transform:translate(-50%,-50%) scale(var(--fit,1));width:min(84vw,560px);display:flex;flex-direction:column;align-items:center;text-align:center;gap:16px}
 .op-name{margin:0;display:flex;justify-content:center;font-family:"FF Identification Std","Barlow Condensed","Arial Narrow",sans-serif;font-weight:600;font-size:clamp(34px,5vw,56px);line-height:1;letter-spacing:.9em;padding-left:.9em;opacity:0;transition:letter-spacing 1.4s cubic-bezier(.2,.8,.2,1),padding 1.4s cubic-bezier(.2,.8,.2,1),opacity .9s}
 .op-name span{display:inline-block}
 .op.s-name .op-name{opacity:1;letter-spacing:.34em;padding-left:.34em}
@@ -129,7 +129,7 @@ a{color:#8D351D}a:hover{color:#331C10}.nav a:not(.btn){color:#1B1B1B;text-decora
 <button type="button" class="btn l op-ghost" id="btn-decline">Not yet</button>
 </div>
 <img class="op-band" src="images/pattern-band.webp" alt="" width="1200" height="136">
-<p class="op-fine">For sale in Goa only. Please drink responsibly.</p>
+<p class="op-fine">Please drink responsibly.</p>
 </div>
 <div id="intro-no" class="op-ask" hidden role="status">
 <h2 class="op-q">Come back when it's time.</h2>
@@ -423,9 +423,9 @@ setTimeout(function () {
   yes.focus();
 }, 5000);
 </script>
-<script src="script.js?v=20261125b"></script>
+<script src="script.js?v=20261125c"></script>
 <script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.min.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/"}}</script>
-<script type="module" src="bottle3d.js?v=20261125b"></script>
-<script type="module" src="opening.js?v=20261125b"></script>
+<script type="module" src="bottle3d.js?v=20261125c"></script>
+<script type="module" src="opening.js?v=20261125c"></script>
 </body>
 </html>

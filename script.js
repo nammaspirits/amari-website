@@ -23,6 +23,22 @@
     add('s-tag', 's-mark', 's-dive', 's-stage', 's-rise', 's-swell1', 's-head', 's-swell2', 's-name', 's-swell3', 's-ask');
     pulse(); focusYes();
   }
+  /* Keep everything inside the sun on any screen shape: measure each line and button and scale the
+     whole group down until every corner sits inside the circle (same size formula as the CSS full sun). */
+  function fitSun() {
+    var body = $('.op-body'); if (!body) return;
+    var vw = innerWidth, vh = innerHeight;
+    var R = Math.min(Math.max(0.42 * Math.min(vw, vh), 268), 0.47 * vw, 0.47 * vh) * 0.92;
+    var half = body.offsetHeight / 2, s = 1;
+    $$('.op-body .op-name, .op-body .op-sub, .op-body .op-q, .op-body .op-btns, .op-body .op-band, .op-body .op-fine').forEach(function (el) {
+      if (!el.offsetWidth || el.closest('[hidden]')) return;
+      var top = 0, n = el; while (n && n !== body) { top += n.offsetTop; n = n.offsetParent; }
+      var x = el.offsetWidth / 2;
+      [top - half, top + el.offsetHeight - half].forEach(function (y) { s = Math.min(s, R / Math.hypot(x, y)); });
+    });
+    body.style.setProperty('--fit', Math.max(0.4, s).toFixed(3));
+  }
+  window.addEventListener('resize', fitSun);
   function aimDive() {                                            // move the logo's sun to the screen centre and grow it past the corners
     var art = $('.op-art'), d = art.querySelector('.op-disc').getBoundingClientRect();
     var dx = innerWidth / 2 - (d.left + d.width / 2), dy = innerHeight / 2 - (d.top + d.height / 2);
@@ -74,8 +90,8 @@
 
   $('#btn-enter').addEventListener('click', enter);
   $('#op-skip').addEventListener('click', function () { if (returning) enter(); else toAsk(); });
-  $('#btn-decline').addEventListener('click', function () { $('#intro-ask').hidden = true; $('#intro-no').hidden = false; $('#btn-reask').focus(); });
-  $('#btn-reask').addEventListener('click', function () { $('#intro-no').hidden = true; $('#intro-ask').hidden = false; $('#btn-enter').focus(); });
+  $('#btn-decline').addEventListener('click', function () { $('#intro-ask').hidden = true; $('#intro-no').hidden = false; fitSun(); $('#btn-reask').focus(); });
+  $('#btn-reask').addEventListener('click', function () { $('#intro-no').hidden = true; $('#intro-ask').hidden = false; fitSun(); $('#btn-enter').focus(); });
   intro.addEventListener('keydown', function (e) {               // keep focus inside the age check
     if (e.key !== 'Tab') return;
     var f = $$('#intro button').filter(function (b) { return !b.closest('[hidden]') && b.offsetParent !== null && getComputedStyle(b).visibility !== 'hidden' && getComputedStyle(b).pointerEvents !== 'none'; });
@@ -85,6 +101,8 @@
     else if (!e.shiftKey && (i === -1 || i === f.length - 1)) { e.preventDefault(); f[0].focus(); }
   });
 
+  fitSun();
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(fitSun);   // re-measure once the web fonts arrive
   if (reduce) { if (returning) finish(); else toAsk(); }
   else if (returning) playStage(true);
   else loader(function () {
