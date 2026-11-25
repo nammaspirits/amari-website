@@ -5,6 +5,7 @@
 
   /* v2 opening: prelude (loader -> tagline -> fly into the sun), then the sun rises over the savanna,
      swells in three drum-beat pulses and becomes the age check. Returning visitors get a short version. */
+  window.AMARI_opening_started = true;                          // tells the page's safety net that the opening is running
   var intro = $('#intro'), toast = $('#toast');
   var KEY = 'amari_age_ok', DAYS30 = 30 * 864e5;
   var reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;

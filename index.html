@@ -404,9 +404,28 @@ a{color:#8D351D}a:hover{color:#331C10}.nav a:not(.btn){color:#1B1B1B;text-decora
 </footer>
 
 </div>
-<script src="script.js"></script>
+<script>
+/* Safety net: if script.js never starts the opening (old cached file, blocked script, bad connection),
+   show the age question after 5 s with working buttons, so nobody is stuck on the loader. */
+setTimeout(function () {
+  if (window.AMARI_opening_started) return;
+  var intro = document.getElementById('intro');
+  if (!intro || intro.hidden) return;
+  intro.classList.add('s-tag', 's-mark', 's-dive', 's-stage', 's-rise', 's-swell1', 's-head', 's-swell2', 's-name', 's-swell3', 's-ask');
+  var yes = document.getElementById('btn-enter'), no = document.getElementById('btn-decline'), back = document.getElementById('btn-reask');
+  yes.onclick = function () {
+    try { localStorage.setItem('amari_age_ok', String(Date.now())); } catch (e) {}
+    intro.hidden = true; document.body.classList.remove('locked');
+  };
+  no.onclick = function () { document.getElementById('intro-ask').hidden = true; document.getElementById('intro-no').hidden = false; };
+  back.onclick = function () { document.getElementById('intro-no').hidden = true; document.getElementById('intro-ask').hidden = false; };
+  document.getElementById('op-skip').hidden = true;
+  yes.focus();
+}, 5000);
+</script>
+<script src="script.js?v=20261125b"></script>
 <script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.min.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/"}}</script>
-<script type="module" src="bottle3d.js"></script>
-<script type="module" src="opening.js"></script>
+<script type="module" src="bottle3d.js?v=20261125b"></script>
+<script type="module" src="opening.js?v=20261125b"></script>
 </body>
 </html>
