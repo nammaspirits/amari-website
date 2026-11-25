@@ -36,9 +36,9 @@
   zone.addEventListener('mousemove', function (e) {
     var r = zone.getBoundingClientRect();
     var x = (e.clientX - r.left) / r.width - 0.5, y = (e.clientY - r.top) / r.height - 0.5;
-    var ry = Math.round(x * 30), rx = Math.round(-y * 14);
+    var ry = Math.round(x * 10), rx = Math.round(-y * 5);
     bottle.style.transform = 'rotateX(' + rx + 'deg) rotateY(' + ry + 'deg)';
-    sun.style.transform = 'translate(' + (-ry * 1.6) + 'px,' + (rx * 1.6) + 'px)';
+    sun.style.transform = 'translate(' + (-ry * 2.4) + 'px,' + (rx * 2.4) + 'px)';
   });
   zone.addEventListener('mouseleave', function () { bottle.style.transform = ''; sun.style.transform = ''; });
 
