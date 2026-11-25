@@ -56,6 +56,7 @@
   var range = $('#turn'), autoBtn = $('#btn-auto'), hint = $('#turn-hint');
   var reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   var angle = 0, shown = -1, auto = !reduceMotion, anim = null, drag = null, sliding = false;
+  var paint3d = null;   // set by bottle3d.js when the 3D bottle is ready: free spin instead of photo steps
 
   function norm(a) { return ((a % 360) + 360) % 360; }
   function nearest(a) { return Math.round(a / STEP) * STEP; }
@@ -63,7 +64,8 @@
 
   function render() {
     var n = norm(angle);
-    frames.forEach(function (img, k) {
+    if (paint3d) paint3d(angle);
+    else frames.forEach(function (img, k) {
       var d = n - k * STEP; d = ((d + 540) % 360) - 180;          // signed degrees from this frame
       var t = d / STEP, at = Math.abs(t);                           // -1..1 between neighbours
       if (at >= 1) { img.style.opacity = 0; img.style.visibility = 'hidden'; return; }
@@ -116,9 +118,20 @@
   });
   function endDrag(e) {
     if (!drag || e.pointerId !== drag.id) return;
-    var fling = Math.max(-STEP * 1.5, Math.min(STEP * 1.5, drag.v * 240));
+    var v = drag.v;
     drag = null;
     stage.classList.remove('dragging');
+    if (paint3d) {                                                  // 3D: keep spinning and slow down naturally
+      if (reduceMotion || Math.abs(v) < 0.01) return;
+      var last = performance.now();
+      (function coast(now) {
+        var dt = Math.min(48, now - last); last = now;
+        angle += v * dt; v *= Math.pow(0.94, dt / 16.7); render();
+        anim = Math.abs(v) > 0.004 ? requestAnimationFrame(coast) : null;
+      })(last);
+      return;
+    }
+    var fling = Math.max(-STEP * 1.5, Math.min(STEP * 1.5, v * 240));
     var target = nearest(angle + fling);
     animateTo(target, 380 + Math.min(420, Math.abs(target - angle) * 4));
   }
@@ -135,7 +148,7 @@
 
   /* Slider: turns freely while dragging, settles on release */
   range.addEventListener('input', function () { sliding = true; stopAuto(); stopAnim(); hideHint(); angle = +range.value; render(); });
-  range.addEventListener('change', function () { sliding = false; animateTo(nearest(angle), 400); });
+  range.addEventListener('change', function () { sliding = false; if (!paint3d) animateTo(nearest(angle), 400); });
 
   /* Front / Side / Back / Other side buttons */
   $$('[data-pick]').forEach(function (b) {
@@ -144,7 +157,27 @@
 
   autoBtn.addEventListener('click', function () { auto = !auto; autoBtn.textContent = auto ? 'Pause turning' : 'Auto-turn'; });
   if (!auto) autoBtn.textContent = 'Auto-turn';
-  setInterval(function () { if (auto && !drag && !anim && !document.hidden) animateTo(nearest(angle) + STEP, 1100); }, 2800);
+  setInterval(function () { if (!paint3d && auto && !drag && !anim && !document.hidden) animateTo(nearest(angle) + STEP, 1100); }, 2800);
+
+  /* 3D mode: a slow, continuous showroom spin while auto-turn is on */
+  var spinLast = 0;
+  function spin(now) {
+    if (paint3d && auto && !drag && !anim && !sliding) {
+      angle += Math.min(48, now - (spinLast || now)) * 0.014;      // about 14 degrees a second
+      render();
+    }
+    spinLast = now;
+    requestAnimationFrame(spin);
+  }
+
+  window.AMARI_turn = {
+    use3D: function (fn) {
+      paint3d = fn;
+      frames.forEach(function (img) { img.style.visibility = 'hidden'; });
+      render();
+      requestAnimationFrame(spin);
+    }
+  };
   render();
 
   /* Serve tabs */
