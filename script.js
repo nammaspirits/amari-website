@@ -113,10 +113,16 @@
   });
   $$('[data-close-toast]').forEach(function (el) { el.addEventListener('click', function () { toast.hidden = true; }); });
 
+  /* Header: transparent over the hero, solid Ivory once you scroll (or while the mobile menu is open) */
+  var head = $('.site-head'), headTick = false;
+  function paintHead() { headTick = false; head.classList.toggle('solid', window.scrollY > 24 || nav.classList.contains('open')); }
+  window.addEventListener('scroll', function () { if (!headTick) { headTick = true; requestAnimationFrame(paintHead); } }, { passive: true });
+
   /* Mobile menu */
   var nav = $('.nav'), navBtn = $('.nav-toggle');
   function setMenu(open) {
     nav.classList.toggle('open', open);
+    paintHead();
     navBtn.setAttribute('aria-expanded', open ? 'true' : 'false');
     navBtn.setAttribute('aria-label', open ? 'Close menu' : 'Open menu');
   }
@@ -127,6 +133,7 @@
   });
   document.addEventListener('click', function (e) { if (!nav.contains(e.target)) setMenu(false); });
   window.addEventListener('resize', function () { if (window.innerWidth > 1023) setMenu(false); });
+  paintHead();
 
   /* Hero bottle tilt */
   var zone = $('#tilt-zone'), bottle = $('#tilt-bottle'), sun = $('#tilt-sun');
@@ -303,6 +310,62 @@
   }
   $$('[data-serve]').forEach(function (b) { b.addEventListener('click', function () { serve(+b.getAttribute('data-serve')); }); });
   serve(0, true);
+
+
+  /* Motion system: reveals as things scroll into view (all browsers), word-by-word headings,
+     arched-label image reveals, Adinkra rules, and the horizon progress line. */
+  (function () {
+    var reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (reduceMotion || !('IntersectionObserver' in window)) return;    // everything simply shows
+    document.documentElement.classList.add('js-motion');
+
+    // headings rise word by word
+    $$('h2.rv, .g-words p').forEach(function (h) {
+      var i = 0;
+      (function walk(node) {
+        Array.prototype.slice.call(node.childNodes).forEach(function (n) {
+          if (n.nodeType === 3) {
+            var frag = document.createDocumentFragment();
+            n.textContent.split(/(\s+)/).forEach(function (part) {
+              if (!part) return;
+              if (/^\s+$/.test(part)) { frag.appendChild(document.createTextNode(part)); return; }
+              var w = document.createElement('span'); w.className = 'w';
+              var inner = document.createElement('span'); inner.textContent = part; inner.style.setProperty('--i', i++);
+              w.appendChild(inner); frag.appendChild(w);
+            });
+            n.parentNode.replaceChild(frag, n);
+          } else if (n.nodeType === 1 && n.tagName !== 'BR') walk(n);
+        });
+      })(h);
+      h.classList.add('split');
+      if (!h.classList.contains('rv')) h.classList.add('rv');
+    });
+
+    // images open through the label's arch
+    $$('.tv:not(#turn-stage), .g-tile:not(.g-words)').forEach(function (el) { el.classList.add('arch'); });
+    var stage3d = $('#turn-stage'); if (stage3d) stage3d.classList.add('rv');      // the 3D stage fades up instead of being masked
+    $$('.gallery .g-tile').forEach(function (el, k) { el.style.setProperty('--d', (k % 4) * 0.09 + 's'); });
+
+    // gentle stagger for groups that reveal together
+    $$('.card.rv').forEach(function (el, k) { el.style.setProperty('--d', (k % 3) * 0.08 + 's'); });
+
+    var io = new IntersectionObserver(function (entries) {
+      entries.forEach(function (e) { if (e.isIntersecting) { e.target.classList.add('is-in'); io.unobserve(e.target); } });
+    }, { rootMargin: '0px 0px -12% 0px', threshold: 0.12 });
+    $$('.rv, .arch, .kente-rule').forEach(function (el) { io.observe(el); });
+  })();
+
+  /* Horizon progress line under the header */
+  (function () {
+    var head = $('.site-head'), ticking = false;
+    function paint() {
+      ticking = false;
+      var max = document.documentElement.scrollHeight - innerHeight;
+      head.style.setProperty('--p', max > 0 ? (scrollY / max).toFixed(4) : 0);
+    }
+    addEventListener('scroll', function () { if (!ticking) { ticking = true; requestAnimationFrame(paint); } }, { passive: true });
+    paint();
+  })();
 
   /* Newsletter (front end only — connect to your email service) */
   $('#btn-subscribe').addEventListener('click', function () {
