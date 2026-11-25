@@ -3,15 +3,95 @@
   var $ = function (s) { return document.querySelector(s); };
   var $$ = function (s) { return Array.prototype.slice.call(document.querySelectorAll(s)); };
 
-  /* Intro pop-up (age check) */
+  /* v2 opening: prelude (loader -> tagline -> fly into the sun), then the sun rises over the savanna,
+     swells in three drum-beat pulses and becomes the age check. Returning visitors get a short version. */
   var intro = $('#intro'), toast = $('#toast');
-  $('#btn-enter').addEventListener('click', function () {
-    intro.classList.add('intro-out');
-    setTimeout(function () { intro.hidden = true; document.body.classList.remove('locked'); }, 900);
-    setTimeout(function () { toast.hidden = false; }, 2600);
+  var KEY = 'amari_age_ok', DAYS30 = 30 * 864e5;
+  var reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  var returning = false;
+  try { returning = Date.now() - (+localStorage.getItem(KEY) || 0) < DAYS30; } catch (e) { /* storage blocked */ }
+  var timers = [], leaving = false;
+  function at(ms, fn) { timers.push(setTimeout(fn, ms)); }
+  function clearAll() { timers.forEach(clearTimeout); timers = []; }
+  function add() { for (var i = 0; i < arguments.length; i++) intro.classList.add(arguments[i]); }
+  function pulse() { intro.dispatchEvent(new Event('amari:pulse')); }
+  function focusYes() { setTimeout(function () { $('#btn-enter').focus({ preventScroll: true }); }, reduce ? 0 : 450); }
+
+  function toAsk() {                                              // skip straight to the question
+    clearAll();
+    add('s-tag', 's-mark', 's-dive', 's-stage', 's-rise', 's-swell1', 's-head', 's-swell2', 's-name', 's-swell3', 's-ask');
+    pulse(); focusYes();
+  }
+  function aimDive() {                                            // move the logo's sun to the screen centre and grow it past the corners
+    var art = $('.op-art'), d = art.querySelector('.op-disc').getBoundingClientRect();
+    var dx = innerWidth / 2 - (d.left + d.width / 2), dy = innerHeight / 2 - (d.top + d.height / 2);
+    art.style.setProperty('--dx', dx + 'px');
+    art.style.setProperty('--dy', dy + 'px');
+    art.style.setProperty('--s', (2.1 * Math.hypot(innerWidth, innerHeight) / d.width).toFixed(2));
+  }
+  function loader(done) {                                         // 0-100, held under 100 until the page has loaded
+    var el = $('#op-count'), t0 = performance.now(), loaded = document.readyState === 'complete';
+    window.addEventListener('load', function () { loaded = true; });
+    (function tick(now) {
+      var p = Math.min(1, (now - t0) / 1600);
+      var v = Math.round((loaded || now - t0 > 4000 ? p : Math.min(p, 0.9)) * 100);
+      el.textContent = v;
+      if (v >= 100) { at(380, done); return; }
+      requestAnimationFrame(tick);
+    })(t0);
+  }
+  function playStage(fast) {
+    add('s-stage');
+    if (fast) {
+      at(250, function () { add('s-rise'); pulse(); });
+      at(750, function () { add('s-swell2', 's-head', 's-name'); pulse(); });
+      at(1700, enter);
+      return;
+    }
+    at(1100, function () { add('s-rise'); });                    // horizon has drawn; the sun comes up
+    at(1700, function () { add('s-swell1'); pulse(); });          // drum 1
+    at(2200, function () { add('s-head'); });
+    at(2400, function () { add('s-swell2'); pulse(); });          // drum 2
+    at(2800, function () { add('s-name'); });
+    at(3100, function () { add('s-swell3'); pulse(); });          // drum 3
+    at(3900, function () { add('s-ask'); focusYes(); });
+  }
+  function enter() {
+    if (leaving) return;
+    leaving = true; clearAll();
+    try { localStorage.setItem(KEY, String(Date.now())); } catch (e) { /* storage blocked */ }
+    intro.dispatchEvent(new Event('amari:out'));
+    add('s-out');                                                 // the sun swells past the screen edges
+    at(reduce ? 0 : 1150, function () { add('is-gone'); });
+    at(reduce ? 0 : 1750, finish);
+  }
+  function finish() {
+    intro.hidden = true;
+    document.body.classList.remove('locked');
+    setTimeout(function () { toast.hidden = false; }, 1700);
+  }
+
+  $('#btn-enter').addEventListener('click', enter);
+  $('#op-skip').addEventListener('click', function () { if (returning) enter(); else toAsk(); });
+  $('#btn-decline').addEventListener('click', function () { $('#intro-ask').hidden = true; $('#intro-no').hidden = false; $('#btn-reask').focus(); });
+  $('#btn-reask').addEventListener('click', function () { $('#intro-no').hidden = true; $('#intro-ask').hidden = false; $('#btn-enter').focus(); });
+  intro.addEventListener('keydown', function (e) {               // keep focus inside the age check
+    if (e.key !== 'Tab') return;
+    var f = $$('#intro button').filter(function (b) { return !b.closest('[hidden]') && b.offsetParent !== null && getComputedStyle(b).visibility !== 'hidden' && getComputedStyle(b).pointerEvents !== 'none'; });
+    if (!f.length) { e.preventDefault(); return; }
+    var i = f.indexOf(document.activeElement);
+    if (e.shiftKey && i <= 0) { e.preventDefault(); f[f.length - 1].focus(); }
+    else if (!e.shiftKey && (i === -1 || i === f.length - 1)) { e.preventDefault(); f[0].focus(); }
   });
-  $('#btn-decline').addEventListener('click', function () { $('#intro-ask').hidden = true; $('#intro-no').hidden = false; });
-  $('#btn-reask').addEventListener('click', function () { $('#intro-no').hidden = true; $('#intro-ask').hidden = false; });
+
+  if (reduce) { if (returning) finish(); else toAsk(); }
+  else if (returning) playStage(true);
+  else loader(function () {
+    add('s-tag');                                                 // "Roho ya Afrika. / Spirit of Africa."
+    at(2000, function () { add('s-mark'); });                    // antelope-in-sun mark
+    at(2900, function () { aimDive(); add('s-dive'); });         // fly into the sun
+    at(3700, function () { playStage(false); });
+  });
   $$('[data-close-toast]').forEach(function (el) { el.addEventListener('click', function () { toast.hidden = true; }); });
 
   /* Mobile menu */
