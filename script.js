@@ -42,32 +42,110 @@
   });
   zone.addEventListener('mouseleave', function () { bottle.style.transform = ''; sun.style.transform = ''; });
 
-  /* Turn the bottle */
+  /* Turn the bottle: drag (mouse, touch, pen), arrow keys, slider, buttons, auto-turn.
+     Works with any number of photos: add more <img class="view" data-view="N"> frames
+     (e.g. 24-36 turntable shots) and it becomes a smooth 360-degree spin. */
   var TEXT = [
     'The antelope-in-sun label: Spirit of Africa, Beyond Ordinary Whiskey, Origin Reserve, Gold Blend.',
     'A gold cap and AMARI neck band over an amber, triple-distilled blend.',
     'Made for the World — a blend of fine grains, carefully distilled to bring out a smooth, rich and distinctive character.',
     'Batch 01. 750 ml. 42.8% ABV. Blended and bottled in Goa.'
   ];
-  var view = 0, auto = true, range = $('#turn'), autoBtn = $('#btn-auto');
-  function show(i) {
-    view = i;
-    $$('[data-view]').forEach(function (img) {
-      var k = +img.getAttribute('data-view');
-      img.style.opacity = k === i ? 1 : 0;
-      img.style.transform = k === i ? 'none' : 'scale(.94) translateX(' + (k < i ? -30 : 30) + 'px)';
+  var NAMES = ['Front', 'Side', 'Back', 'Other side'];
+  var stage = $('#turn-stage'), frames = $$('[data-view]'), N = frames.length, STEP = 360 / N;
+  var range = $('#turn'), autoBtn = $('#btn-auto'), hint = $('#turn-hint');
+  var reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  var angle = 0, shown = -1, auto = !reduceMotion, anim = null, drag = null, sliding = false;
+
+  function norm(a) { return ((a % 360) + 360) % 360; }
+  function nearest(a) { return Math.round(a / STEP) * STEP; }
+  function toward(target) { var d = norm(target - angle); if (d > 180) d -= 360; return angle + d; }
+
+  function render() {
+    var n = norm(angle);
+    frames.forEach(function (img, k) {
+      var d = n - k * STEP; d = ((d + 540) % 360) - 180;          // signed degrees from this frame
+      var t = d / STEP, at = Math.abs(t);                           // -1..1 between neighbours
+      if (at >= 1) { img.style.opacity = 0; img.style.visibility = 'hidden'; return; }
+      img.style.visibility = 'visible';
+      img.style.opacity = Math.min(1, Math.max(0, (0.62 - at) / 0.24)).toFixed(3); // quick cross-fade mid-turn
+      img.style.transform = 'translateX(' + (t * 16).toFixed(2) + '%) scaleX(' + (1 - 0.1 * at).toFixed(3) + ')';
     });
-    $$('[data-pick]').forEach(function (b) { b.setAttribute('aria-pressed', +b.getAttribute('data-pick') === i ? 'true' : 'false'); });
-    $('#view-no').textContent = '0' + (i + 1);
-    $('#view-text').textContent = TEXT[i];
-    range.value = i;
+    var idx = Math.round(n / STEP) % N;
+    if (idx !== shown) {
+      shown = idx;
+      $('#view-no').textContent = (idx < 9 ? '0' : '') + (idx + 1);
+      $('#view-text').textContent = TEXT[idx] || '';
+      $$('[data-pick]').forEach(function (b) { b.setAttribute('aria-pressed', +b.getAttribute('data-pick') === idx ? 'true' : 'false'); });
+      stage.setAttribute('aria-valuetext', NAMES[idx] || ('View ' + (idx + 1)));
+    }
+    stage.setAttribute('aria-valuenow', Math.round(n));
+    if (!sliding) range.value = Math.round(n);
+  }
+
+  function stopAnim() { if (anim) { cancelAnimationFrame(anim); anim = null; } }
+  function animateTo(target, ms) {
+    stopAnim();
+    if (reduceMotion || !ms) { angle = target; render(); return; }
+    var from = angle, start = performance.now();
+    (function tick(now) {
+      var p = Math.min(1, (now - start) / ms), e = 1 - Math.pow(1 - p, 3); // ease-out cubic
+      angle = from + (target - from) * e; render();
+      anim = p < 1 ? requestAnimationFrame(tick) : null;
+    })(start);
   }
   function stopAuto() { auto = false; autoBtn.textContent = 'Auto-turn'; }
-  $$('[data-pick]').forEach(function (b) { b.addEventListener('click', function () { stopAuto(); show(+b.getAttribute('data-pick')); }); });
-  range.addEventListener('input', function () { stopAuto(); show(+range.value); });
+  function hideHint() { if (hint) hint.classList.add('gone'); }
+
+  /* Drag with momentum, then settle on the nearest photo */
+  stage.addEventListener('pointerdown', function (e) {
+    if (e.pointerType === 'mouse' && e.button !== 0) return;
+    stopAuto(); stopAnim(); hideHint();
+    drag = { id: e.pointerId, x: e.clientX, t: performance.now(), v: 0 };
+    try { stage.setPointerCapture(e.pointerId); } catch (err) { /* capture is optional */ }
+    stage.classList.add('dragging');
+  });
+  stage.addEventListener('pointermove', function (e) {
+    if (!drag || e.pointerId !== drag.id) return;
+    var now = performance.now(), dx = e.clientX - drag.x, dt = Math.max(1, now - drag.t);
+    var deg = dx * 360 / (stage.clientWidth * 1.3);                // a full-width drag turns ~280 degrees
+    angle += deg;
+    drag.v = drag.v * 0.6 + (deg / dt) * 0.4;                      // degrees per ms, smoothed
+    drag.x = e.clientX; drag.t = now;
+    render();
+  });
+  function endDrag(e) {
+    if (!drag || e.pointerId !== drag.id) return;
+    var fling = Math.max(-STEP * 1.5, Math.min(STEP * 1.5, drag.v * 240));
+    drag = null;
+    stage.classList.remove('dragging');
+    var target = nearest(angle + fling);
+    animateTo(target, 380 + Math.min(420, Math.abs(target - angle) * 4));
+  }
+  stage.addEventListener('pointerup', endDrag);
+  stage.addEventListener('pointercancel', endDrag);
+  stage.addEventListener('lostpointercapture', endDrag);
+
+  /* Keyboard on the stage */
+  stage.addEventListener('keydown', function (e) {
+    var go = { ArrowRight: STEP, ArrowUp: STEP, ArrowLeft: -STEP, ArrowDown: -STEP }[e.key];
+    if (go) { e.preventDefault(); stopAuto(); hideHint(); animateTo(nearest(angle) + go, 600); }
+    else if (e.key === 'Home') { e.preventDefault(); stopAuto(); animateTo(toward(0), 600); }
+  });
+
+  /* Slider: turns freely while dragging, settles on release */
+  range.addEventListener('input', function () { sliding = true; stopAuto(); stopAnim(); hideHint(); angle = +range.value; render(); });
+  range.addEventListener('change', function () { sliding = false; animateTo(nearest(angle), 400); });
+
+  /* Front / Side / Back / Other side buttons */
+  $$('[data-pick]').forEach(function (b) {
+    b.addEventListener('click', function () { stopAuto(); hideHint(); animateTo(toward(+b.getAttribute('data-pick') * STEP), 700); });
+  });
+
   autoBtn.addEventListener('click', function () { auto = !auto; autoBtn.textContent = auto ? 'Pause turning' : 'Auto-turn'; });
-  setInterval(function () { if (auto) show((view + 1) % 4); }, 2200);
-  show(0);
+  if (!auto) autoBtn.textContent = 'Auto-turn';
+  setInterval(function () { if (auto && !drag && !anim && !document.hidden) animateTo(nearest(angle) + STEP, 1100); }, 2800);
+  render();
 
   /* Serve tabs */
   var SERVES = [
