@@ -25,7 +25,7 @@ if (stage && turn && webglOK()) {
   } else start();
 }
 
-const V = '20261126d';   // bump when the skin or profile is rebuilt
+const V = '20261126e';   // bump when the skin or profile is rebuilt
 
 async function init() {
   const [profile, skin, capTop] = await Promise.all([
@@ -76,6 +76,8 @@ async function init() {
   function resize() {
     const w = holder.clientWidth, h = holder.clientHeight;
     if (!w || !h) return;
+    const z = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--z')) || 1;   // page zoom on wide screens
+    renderer.setPixelRatio(Math.min((window.devicePixelRatio || 1) * z, 3));
     renderer.setSize(w, h, false);
     camera.aspect = w / h;
     const halfH = H / 2 + 0.45, halfW = maxR + 0.35;
